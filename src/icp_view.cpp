@@ -5,8 +5,6 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/filter_indices.h>
 #include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/console/time.h>   // TicToc
 
 
 #include <vtkRenderWindow.h>
@@ -83,14 +81,11 @@ int main (int argc, char** argv)
   icp.setInputSource( cloud_source_trans ); // not cloud_source, but cloud_source_trans!
   icp.setInputTarget( cloud_target );
   
-  pcl::console::TicToc time;
   
   while(!viewer->wasStopped ())
   {
     // registration
-    time.tic ();
     icp.align( *cloud_source_trans );
-    std::cout << "Applied 1 ICP iteration in " << time.toc () << " ms" << std::endl;
     
     if( icp.hasConverged() )
     {
