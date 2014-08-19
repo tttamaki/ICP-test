@@ -5,6 +5,9 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/filter_indices.h>
 #include <pcl/common/transforms.h>
+#include <pcl/visualization/registration_visualizer.h>
+
+
 
 #include <vtkRenderWindow.h>
 #include <vtkRendererCollection.h>
@@ -51,13 +54,9 @@ int main (int argc, char** argv)
   viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->ResetCamera ();
 
 
-//   while (!viewer->wasStopped ())
-//   {
-//     viewer->spinOnce (100);
-//     boost::this_thread::sleep (boost::posix_time::microseconds (100000));
-//   }
+//   viewer->spin();
 
-  
+
 
   
   
@@ -66,9 +65,19 @@ int main (int argc, char** argv)
   icp.setInputSource(cloud_source);
   icp.setInputTarget(cloud_target);
 
-  pcl::PointCloud<pcl::PointXYZ> Final;
-  icp.align(Final);
+//   pcl::RegistrationVisualizer<pcl::PointXYZ, pcl::PointXYZ> regist_viewer;
+//   regist_viewer.setRegistration(icp);
+//   regist_viewer.startDisplay();
   
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans (new pcl::PointCloud<pcl::PointXYZ>);
+  icp.align( *cloud_source_trans );
+  
+  pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_trans_color(cloud_source_trans, 255, 0, 255);
+  viewer->addPointCloud<pcl::PointXYZ> (cloud_source_trans, source_trans_color, "source trans");
+  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans");
+  
+  
+//   regist_viewer.stopDisplay();
   
   
   std::cout << "has converged:" << icp.hasConverged()
@@ -78,16 +87,13 @@ int main (int argc, char** argv)
   std::cout << transformation << std::endl;
   
   
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans (new pcl::PointCloud<pcl::PointXYZ>);
-  pcl::transformPointCloud( *cloud_source, *cloud_source_trans, transformation );
-
   
-
   while (!viewer->wasStopped ())
   {
     viewer->spinOnce (100);
     boost::this_thread::sleep (boost::posix_time::microseconds (100000));
   }
+  
 
   
   return (0);
