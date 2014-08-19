@@ -36,48 +36,48 @@ int main (int argc, char** argv)
   pcl::removeNaNFromPointCloud( *cloud_target, *cloud_target, index );
 
 
-  boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-  viewer->setBackgroundColor (0, 0, 0);
-
-  pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color(cloud_source, 0, 255, 0);
-  viewer->addPointCloud<pcl::PointXYZ> (cloud_source, source_color, "source");
-  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
-
-  pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color(cloud_target, 255, 0, 0);
-  viewer->addPointCloud<pcl::PointXYZ> (cloud_target, target_color, "target");
-  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
-
-  viewer->initCameraParameters ();
-  // orthographic (parallel) projection; same with pressing key 'o'
-  viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection(1);
-  // reset camera; same with pressing key 'r'
-  viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->ResetCamera ();
-
-
-//   viewer->spin();
+//   boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+//   viewer->setBackgroundColor (0, 0, 0);
+// 
+//   pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color(cloud_source, 0, 255, 0);
+//   viewer->addPointCloud<pcl::PointXYZ> (cloud_source, source_color, "source");
+//   viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
+// 
+//   pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color(cloud_target, 255, 0, 0);
+//   viewer->addPointCloud<pcl::PointXYZ> (cloud_target, target_color, "target");
+//   viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
+// 
+//   viewer->initCameraParameters ();
+//   // orthographic (parallel) projection; same with pressing key 'o'
+//   viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection(1);
+//   // reset camera; same with pressing key 'r'
+//   viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->ResetCamera ();
 
 
 
-  
-  
+
+
+  pcl::RegistrationVisualizer<pcl::PointXYZ, pcl::PointXYZ> regist_viewer;
+  regist_viewer.startDisplay();
+  regist_viewer.setMaximumDisplayedCorrespondences (100);
   
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setInputSource(cloud_source);
   icp.setInputTarget(cloud_target);
+  icp.setMaximumIterations(10000);
+  
+  regist_viewer.setRegistration(icp);
 
-//   pcl::RegistrationVisualizer<pcl::PointXYZ, pcl::PointXYZ> regist_viewer;
-//   regist_viewer.setRegistration(icp);
-//   regist_viewer.startDisplay();
   
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans (new pcl::PointCloud<pcl::PointXYZ>);
   icp.align( *cloud_source_trans );
   
-  pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_trans_color(cloud_source_trans, 255, 0, 255);
-  viewer->addPointCloud<pcl::PointXYZ> (cloud_source_trans, source_trans_color, "source trans");
-  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans");
+//   pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_trans_color(cloud_source_trans, 255, 0, 255);
+//   viewer->addPointCloud<pcl::PointXYZ> (cloud_source_trans, source_trans_color, "source trans");
+//   viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans");
   
   
-//   regist_viewer.stopDisplay();
+   regist_viewer.stopDisplay();
   
   
   std::cout << "has converged:" << icp.hasConverged()
@@ -88,11 +88,23 @@ int main (int argc, char** argv)
   
   
   
-  while (!viewer->wasStopped ())
-  {
-    viewer->spinOnce (100);
-    boost::this_thread::sleep (boost::posix_time::microseconds (100000));
-  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+//   while (!viewer->wasStopped ())
+//   {
+//     viewer->spinOnce (100);
+//     boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+//   }
   
 
   
