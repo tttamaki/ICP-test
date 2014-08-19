@@ -5,7 +5,6 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/filter_indices.h>
 #include <pcl/common/transforms.h>
-// #include <pcl/registration/transformation_estimation_svd.h>
 
 #include <vtkRenderWindow.h>
 #include <vtkRendererCollection.h>
@@ -80,15 +79,6 @@ int main (int argc, char** argv)
   icp.setMaximumIterations (1);
   icp.setInputSource( cloud_source_trans ); // not cloud_source, but cloud_source_trans!
   icp.setInputTarget( cloud_target );
-  
-  
-  
-  
-  // TransformationEstimationPointToPlaneLLS<PointXYZ, PointXYZ>::Ptr trans_lls (new TransformationEstimationPointToPlaneLLS<PointXYZ, PointXYZ>);
-  // icp.setTransformationEstimation (trans_lls);
-  // pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ>::Ptr trans_svd (new pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ>);
-  // icp.setTransformationEstimation (trans_svd);
-  
   
   
   
