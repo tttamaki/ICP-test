@@ -18,3 +18,6 @@ target_link_libraries (icp_view ${PCL_LIBRARIES})
 add_executable (icpwithnormal_view src/icpwithnormal_view.cpp)
 target_link_libraries (icpwithnormal_view ${PCL_LIBRARIES})
 
+add_executable (feature src/feature.cpp)
+target_link_libraries (feature ${PCL_LIBRARIES})
+
