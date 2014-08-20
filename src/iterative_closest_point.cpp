@@ -1,11 +1,11 @@
 #include <iostream>
 #include <pcl/io/ply_io.h>
+#include <pcl/io/vtk_lib_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/filter_indices.h>
 #include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
 
 
 
@@ -20,20 +20,30 @@ int main (int argc, char** argv)
 {
   
   
-  // load source
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source( new pcl::PointCloud<pcl::PointXYZ> );
-  if ( pcl::io::loadPLYFile<pcl::PointXYZ>("../bunny/data/bun000.ply", *cloud_source) == -1 )
-  {
-    PCL_ERROR ("loadPLYFile faild.");
-    return (-1);
-  }
-
-  // load target
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target( new pcl::PointCloud<pcl::PointXYZ> );
-  if ( pcl::io::loadPLYFile<pcl::PointXYZ>("../bunny/data/bun045.ply", *cloud_target) == -1 )
-  {
-    PCL_ERROR ("loadPLYFile faild.");
-    return (-1);
+  
+  {  
+    pcl::PolygonMesh mesh;
+    
+    // load source
+    if ( pcl::io::loadPolygonFilePLY(argv[1], mesh) == -1 )
+    {
+      PCL_ERROR ("loadPLYFile faild.");
+      return (-1);
+    }
+    else
+      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_source);
+    
+    
+    // load target
+    if ( pcl::io::loadPolygonFilePLY(argv[2], mesh) == -1 )
+    {
+      PCL_ERROR ("loadPLYFile faild.");
+      return (-1);
+    }
+    else
+      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_target);
   }
 
   
@@ -81,7 +91,7 @@ int main (int argc, char** argv)
     viewer->addPointCloud<pcl::PointXYZ> (cloud_source, source_color, "source");
     viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
     
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color(cloud_target, 255, 0, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color(cloud_target, 255, 255, 255);
     viewer->addPointCloud<pcl::PointXYZ> (cloud_target, target_color, "target");
     viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
     
@@ -90,18 +100,14 @@ int main (int argc, char** argv)
     viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans");
     
     
-    viewer->initCameraParameters ();
+//     viewer->initCameraParameters ();
     // orthographic (parallel) projection; same with pressing key 'o'
     viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection(1);
-    // reset camera; same with pressing key 'r'
-    viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->ResetCamera ();
+
+    viewer->resetCamera();
     
-    
-    while(!viewer->wasStopped ())
-    {
-      viewer->spinOnce (100);
-      boost::this_thread::sleep (boost::posix_time::microseconds (100000));
-    }
+    viewer->spin ();
+
     
   }
   

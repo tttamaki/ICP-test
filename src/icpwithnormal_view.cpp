@@ -1,5 +1,6 @@
 #include <iostream>
 #include <pcl/io/ply_io.h>
+#include <pcl/io/vtk_lib_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/cloud_viewer.h>
@@ -37,20 +38,30 @@ int main (int argc, char** argv)
 {
   
   
-  // load source
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source( new pcl::PointCloud<pcl::PointXYZ> );
-  if ( pcl::io::loadPLYFile<pcl::PointXYZ>(argv[1], *cloud_source) == -1 )
-  {
-    PCL_ERROR ("loadPLYFile faild.");
-    return (-1);
-  }
-  
-  // load target
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target( new pcl::PointCloud<pcl::PointXYZ> );
-  if ( pcl::io::loadPLYFile<pcl::PointXYZ>(argv[2], *cloud_target) == -1 )
-  {
-    PCL_ERROR ("loadPLYFile faild.");
-    return (-1);
+  
+  {  
+    pcl::PolygonMesh mesh;
+    
+    // load source
+    if ( pcl::io::loadPolygonFilePLY(argv[1], mesh) == -1 )
+    {
+      PCL_ERROR ("loadPLYFile faild.");
+      return (-1);
+    }
+    else
+      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_source);
+    
+    
+    // load target
+    if ( pcl::io::loadPolygonFilePLY(argv[2], mesh) == -1 )
+    {
+      PCL_ERROR ("loadPLYFile faild.");
+      return (-1);
+    }
+    else
+      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_target);
   }
   
   
@@ -111,24 +122,24 @@ int main (int argc, char** argv)
   
   
   
-  pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> icp;
-  icp.setMaximumIterations (1);
-  icp.setInputSource( cloud_source_trans_normals ); // not cloud_source, but cloud_source_trans!
-  icp.setInputTarget( cloud_target_normals );
+  pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>::Ptr icp ( new pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> );
+  icp->setMaximumIterations (1);
+  icp->setInputSource( cloud_source_trans_normals ); // not cloud_source, but cloud_source_trans!
+  icp->setInputTarget( cloud_target_normals );
   
   
   
   while(!viewer->wasStopped ())
   {
     // registration
-    icp.align( *cloud_source_trans_normals ); // use cloud with normals for ICP
+    icp->align( *cloud_source_trans_normals ); // use cloud with normals for ICP
     
-    if( icp.hasConverged() )
+    if( icp->hasConverged() )
     {
       // use cloud without normals for visualizatoin
-      pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, icp.getFinalTransformation() );
+      pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, icp->getFinalTransformation() );
       viewer->updatePointCloud ( cloud_source_trans, source_trans_color, "source trans" );
-      std::cout << icp.getFitnessScore() << std::endl;
+      std::cout << icp->getFitnessScore() << std::endl;
     }
     else
       std::cout << "Not converged." << std::endl;
