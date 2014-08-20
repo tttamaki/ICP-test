@@ -90,8 +90,8 @@ int main (int argc, char** argv)
     
     if( icp.hasConverged() )
     {
-      icp.getFinalTransformation ();
       viewer->updatePointCloud(cloud_source_trans, source_trans_color, "source trans");
+      std::cout << icp.getFitnessScore() << std::endl;
     }
     else
       std::cout << "Not converged." << std::endl;
