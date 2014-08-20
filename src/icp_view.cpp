@@ -5,6 +5,7 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/filter_indices.h>
 #include <pcl/common/transforms.h>
+// #include <pcl/registration/icp_nl.h>
 
 #include <vtkRenderWindow.h>
 #include <vtkRendererCollection.h>
@@ -19,7 +20,7 @@ int main (int argc, char** argv)
   
   // load source
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source( new pcl::PointCloud<pcl::PointXYZ> );
-  if ( pcl::io::loadPLYFile<pcl::PointXYZ>("../bunny/data/bun000.ply", *cloud_source) == -1 )
+  if ( pcl::io::loadPLYFile<pcl::PointXYZ>(argv[1], *cloud_source) == -1 )
   {
     PCL_ERROR ("loadPLYFile faild.");
     return (-1);
@@ -27,7 +28,7 @@ int main (int argc, char** argv)
   
   // load target
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target( new pcl::PointCloud<pcl::PointXYZ> );
-  if ( pcl::io::loadPLYFile<pcl::PointXYZ>("../bunny/data/bun045.ply", *cloud_target) == -1 )
+  if ( pcl::io::loadPLYFile<pcl::PointXYZ>(argv[2], *cloud_target) == -1 )
   {
     PCL_ERROR ("loadPLYFile faild.");
     return (-1);
@@ -76,6 +77,7 @@ int main (int argc, char** argv)
   
   
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+//   pcl::IterativeClosestPointNonLinear<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setMaximumIterations (1);
   icp.setInputSource( cloud_source_trans ); // not cloud_source, but cloud_source_trans!
   icp.setInputTarget( cloud_target );
