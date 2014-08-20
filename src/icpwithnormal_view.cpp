@@ -7,8 +7,6 @@
 #include <pcl/common/transforms.h>
 #include <pcl/features/normal_3d.h>
 
-
-
 #include <vtkRenderWindow.h>
 #include <vtkRendererCollection.h>
 #include <vtkCamera.h>
@@ -100,7 +98,7 @@ int main (int argc, char** argv)
   
   
   
-    
+  // prepare could with normals
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_source_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_target_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_source_trans_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
@@ -123,12 +121,13 @@ int main (int argc, char** argv)
   while(!viewer->wasStopped ())
   {
     // registration
-    icp.align( *cloud_source_trans_normals );
+    icp.align( *cloud_source_trans_normals ); // use cloud with normals for ICP
     
     if( icp.hasConverged() )
     {
-      pcl::transformPointCloud (*cloud_source, *cloud_source_trans, icp.getFinalTransformation());
-      viewer->updatePointCloud(cloud_source_trans, source_trans_color, "source trans");
+      // use cloud without normals for visualizatoin
+      pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, icp.getFinalTransformation() );
+      viewer->updatePointCloud ( cloud_source_trans, source_trans_color, "source trans" );
       std::cout << icp.getFitnessScore() << std::endl;
     }
     else
