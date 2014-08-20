@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <pcl/io/ply_io.h>
 #include <pcl/io/vtk_lib_io.h>
 #include <pcl/point_types.h>
@@ -9,14 +10,12 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/keypoints/harris_3d.h>
 #include <pcl/features/fpfh_omp.h>
+#include <pcl/features/ppf.h>
 
 
 #include <vtkRenderWindow.h>
 #include <vtkRendererCollection.h>
 #include <vtkCamera.h>
-
-
-
 
 
 
@@ -107,6 +106,8 @@ void addNormal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
 
 
 
+
+
 int main (int argc, char** argv)
 {
   
@@ -192,18 +193,30 @@ int main (int argc, char** argv)
       
     }
     
+
     
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr source_features ( new pcl::PointCloud<pcl::FPFHSignature33> );
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr target_features ( new pcl::PointCloud<pcl::FPFHSignature33> );
+// #define useFPFH
+
+#ifdef useFPFH
+#define descriptorType pcl::FPFHSignature33
+#else
+#define descriptorType pcl::PPFSignature
+#endif
+
+    pcl::PointCloud<descriptorType>::Ptr source_features ( new pcl::PointCloud<descriptorType> );
+    pcl::PointCloud<descriptorType>::Ptr target_features ( new pcl::PointCloud<descriptorType> );
     
-    { // FPFH descriptor
+    { // descriptor
       std::cout << "description" << std::endl;
-      
-      pcl::Feature<pcl::PointXYZ, pcl::FPFHSignature33>::Ptr descriptor ( new pcl::FPFHEstimationOMP<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> ); 
+#ifdef useFPFH
+      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::FPFHEstimationOMP<pcl::PointXYZ, pcl::Normal, descriptorType> ); 
+#else
+      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::PPFEstimation<pcl::PointXYZ, pcl::Normal, descriptorType> ); 
+#endif      
       descriptor->setSearchMethod ( pcl::search::Search<pcl::PointXYZ>::Ptr ( new pcl::search::KdTree<pcl::PointXYZ>) );
       descriptor->setRadiusSearch ( 0.5 );
       
-      pcl::FeatureFromNormals<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33>::Ptr feature_from_normals = boost::dynamic_pointer_cast<pcl::FeatureFromNormals<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> > ( descriptor );
+      pcl::FeatureFromNormals<pcl::PointXYZ, pcl::Normal, descriptorType>::Ptr feature_from_normals = boost::dynamic_pointer_cast<pcl::FeatureFromNormals<pcl::PointXYZ, pcl::Normal, descriptorType> > ( descriptor );
       
       descriptor->setSearchSurface ( cloud_source );
       descriptor->setInputCloud ( source_keypointsXYZ );
@@ -217,6 +230,7 @@ int main (int argc, char** argv)
       
     }
     
+
     
     std::vector<int> correspondences;
     
@@ -225,13 +239,14 @@ int main (int argc, char** argv)
 
       correspondences.resize ( source_features->size() );
       
-      pcl::KdTreeFLANN<pcl::FPFHSignature33> search_tree;
+      pcl::KdTreeFLANN<descriptorType> search_tree;
       search_tree.setInputCloud ( target_features );
       
       std::vector<int> index(1);
       std::vector<float> L2_distance(1);
       for (int i = 0; i < source_features->size(); ++i)
       {
+	if ( isnan(source_features->points[i].f1) ) continue;
 	search_tree.nearestKSearch ( *source_features, i, 1, index, L2_distance );
 	correspondences[i] = index[0];
       }
