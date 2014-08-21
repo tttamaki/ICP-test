@@ -120,7 +120,7 @@ int main (int argc, char** argv)
     // registration
     icp->align ( *cloud_source_trans_normals ); // use cloud with normals for ICP
     
-    if( icp->hasConverged() )
+    if ( icp->hasConverged() )
     {
       // use cloud without normals for visualizatoin
       pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, icp->getFinalTransformation() );

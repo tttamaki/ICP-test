@@ -64,7 +64,7 @@ int main ( int argc, char** argv )
     icp.align ( *cloud_source_trans );
     
     
-    if( icp.hasConverged() )
+    if ( icp.hasConverged() )
     {
       std::cout << "Converged. score =" << icp.getFitnessScore() << std::endl;
       

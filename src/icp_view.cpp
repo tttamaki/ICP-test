@@ -91,7 +91,7 @@ int main (int argc, char** argv)
     // registration
     icp->align ( *cloud_source_trans );
     
-    if( icp->hasConverged() )
+    if ( icp->hasConverged() )
     {
       viewer->updatePointCloud ( cloud_source_trans, source_trans_color, "source trans" );
       std::cout << icp->getFitnessScore() << std::endl;
