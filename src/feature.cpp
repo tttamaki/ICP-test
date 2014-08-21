@@ -431,20 +431,32 @@ int main (int argc, char** argv)
   
   
   
-  pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>::Ptr icp ( new pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> () );
-  icp->setInputSource ( cloud_source_trans_normals ); // not cloud_source, but cloud_source_trans!
-  icp->setInputTarget ( cloud_target_normals );
+    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+    
+    icp.setInputSource ( cloud_source_trans );
+    icp.setInputTarget ( cloud_target );
+    
+    // registration
+    icp.align ( *cloud_source_trans );
+    
+     Eigen::Matrix4f transformation;
+    if( icp.hasConverged() )
+    {
+      std::cout << "Converged. score =" << icp.getFitnessScore() << std::endl;
+      
+      transformation = icp.getFinalTransformation();
+      std::cout << transformation << std::endl;
+    }
+    else
+      std::cout << "Not converged." << std::endl;
+
   
-  // registration with ICP
-  icp->align ( *cloud_source_trans_normals );
   
   
-  
-  if( icp->hasConverged() )
+  if( icp.hasConverged() )
   {
-    pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, icp->getFinalTransformation() );
     viewer->updatePointCloud ( cloud_source_trans, source_trans_color, "source trans" );
-    std::cout << icp->getFitnessScore() << std::endl;
+    std::cout << icp.getFitnessScore() << std::endl;
   }
   else
     std::cout << "Not converged." << std::endl;
