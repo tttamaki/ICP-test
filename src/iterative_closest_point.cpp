@@ -14,66 +14,60 @@
 #include <vtkCamera.h>
 
 
+void
+loadFile(const char* fileName,
+	 pcl::PointCloud<pcl::PointXYZ> &cloud
+)
+{
+  pcl::PolygonMesh mesh;
+  
+  if ( pcl::io::loadPolygonFile ( fileName, mesh ) == -1 )
+  {
+    PCL_ERROR ( "loadFile faild." );
+    return;
+  }
+  else
+    pcl::fromPCLPointCloud2<pcl::PointXYZ> ( mesh.cloud, cloud );
+  
+  // remove points having values of nan
+  std::vector<int> index;
+  pcl::removeNaNFromPointCloud ( cloud, cloud, index );
+}
 
 
-int main (int argc, char** argv)
+int main ( int argc, char** argv )
 {
   
   
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source( new pcl::PointCloud<pcl::PointXYZ> );
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target( new pcl::PointCloud<pcl::PointXYZ> );
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source ( new pcl::PointCloud<pcl::PointXYZ> () );
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target ( new pcl::PointCloud<pcl::PointXYZ> () );
   
-  {  
-    pcl::PolygonMesh mesh;
-    
+  {
     // load source
-    if ( pcl::io::loadPolygonFilePLY(argv[1], mesh) == -1 )
-    {
-      PCL_ERROR ("loadPLYFile faild.");
-      return (-1);
-    }
-    else
-      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_source);
-    
-    
+    loadFile ( argv[1], *cloud_source );
     // load target
-    if ( pcl::io::loadPolygonFilePLY(argv[2], mesh) == -1 )
-    {
-      PCL_ERROR ("loadPLYFile faild.");
-      return (-1);
-    }
-    else
-      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_target);
+    loadFile ( argv[2], *cloud_target );
   }
 
-  
-  
-  { // remove points with nan
-    std::vector<int> index;
-    pcl::removeNaNFromPointCloud( *cloud_source, *cloud_source, index );
-    pcl::removeNaNFromPointCloud( *cloud_target, *cloud_target, index );
-  }
-  
-  
-  // transformed source = target
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans ( new pcl::PointCloud<pcl::PointXYZ> );
+
+  // transformed source ---> target
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans ( new pcl::PointCloud<pcl::PointXYZ> () );
 
 
   { // ICP registration
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     
-    icp.setInputSource( cloud_source );
-    icp.setInputTarget( cloud_target );
+    icp.setInputSource ( cloud_source );
+    icp.setInputTarget ( cloud_target );
     
     // registration
-    icp.align( *cloud_source_trans );
+    icp.align ( *cloud_source_trans );
     
     
     if( icp.hasConverged() )
     {
       std::cout << "Converged. score =" << icp.getFitnessScore() << std::endl;
       
-      // 4x4 transformation matrix
       Eigen::Matrix4f transformation = icp.getFinalTransformation();
       std::cout << transformation << std::endl;
     }
@@ -87,22 +81,21 @@ int main (int argc, char** argv)
     boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer ( new pcl::visualization::PCLVisualizer ("3D Viewer") );
     viewer->setBackgroundColor (0, 0, 0);
     
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color(cloud_source, 0, 255, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color ( cloud_source, 0, 255, 0 );
     viewer->addPointCloud<pcl::PointXYZ> (cloud_source, source_color, "source");
     viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
     
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color(cloud_target, 255, 255, 255);
-    viewer->addPointCloud<pcl::PointXYZ> (cloud_target, target_color, "target");
-    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color ( cloud_target, 255, 255, 255 );
+    viewer->addPointCloud<pcl::PointXYZ> ( cloud_target, target_color, "target");
+    viewer->setPointCloudRenderingProperties ( pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target" );
     
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_trans_color(cloud_source_trans, 255, 0, 255);
-    viewer->addPointCloud<pcl::PointXYZ> (cloud_source_trans, source_trans_color, "source trans");
-    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans");
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_trans_color ( cloud_source_trans, 255, 0, 255 );
+    viewer->addPointCloud<pcl::PointXYZ> ( cloud_source_trans, source_trans_color, "source trans" );
+    viewer->setPointCloudRenderingProperties ( pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans" );
     
     
-//     viewer->initCameraParameters ();
     // orthographic (parallel) projection; same with pressing key 'o'
-    viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection(1);
+    viewer->getRenderWindow()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection( 1 );
 
     viewer->resetCamera();
     
