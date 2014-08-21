@@ -10,8 +10,9 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/keypoints/harris_3d.h>
 #include <pcl/features/fpfh_omp.h>
-#include <pcl/features/ppf.h>
+#include <pcl/features/shot_omp.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
+
 
 #include <vtkRenderWindow.h>
 #include <vtkRendererCollection.h>
@@ -206,7 +207,8 @@ int main (int argc, char** argv)
   }
   
   
-  
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans ( new pcl::PointCloud<pcl::PointXYZ> () );
+
   // prepare could with normals
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_source_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal> () );
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_target_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal> () );
@@ -220,10 +222,6 @@ int main (int argc, char** argv)
   addNormal ( cloud_source, source_normals, cloud_source_trans_normals ); // dummy at this time
   
   
-  
-  
-  
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans ( new pcl::PointCloud<pcl::PointXYZ> () );
 
   
   
@@ -253,7 +251,7 @@ int main (int argc, char** argv)
       detector->setNonMaxSupression ( true );
       detector->setRadius ( radius );
       detector->setRadiusSearch ( radius );
-      detector->setMethod ( pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI>::HARRIS );
+      detector->setMethod ( pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI>::CURVATURE ); // HARRIS, NOBLE, LOWE, TOMASI, CURVATURE 
       
       detector->setInputCloud ( cloud_source_normals );
       detector->setSearchSurface ( cloud_source_normals );
@@ -278,7 +276,7 @@ int main (int argc, char** argv)
 #ifdef useFPFH
 #define descriptorType pcl::FPFHSignature33
 #else
-#define descriptorType pcl::PPFSignature
+#define descriptorType pcl::SHOT352
 #endif
 
     pcl::PointCloud<descriptorType>::Ptr source_features ( new pcl::PointCloud<descriptorType> () );
@@ -289,7 +287,7 @@ int main (int argc, char** argv)
 #ifdef useFPFH
       pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::FPFHEstimationOMP<pcl::PointXYZ, pcl::Normal, descriptorType> () ); 
 #else
-      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::PPFEstimation<pcl::PointXYZ, pcl::Normal, descriptorType> () );
+      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::SHOTEstimationOMP<pcl::PointXYZ, pcl::Normal, descriptorType> () );
 #endif      
       descriptor->setSearchMethod ( pcl::search::Search<pcl::PointXYZ>::Ptr ( new pcl::search::KdTree<pcl::PointXYZ>) );
       descriptor->setRadiusSearch ( radius*10 );
@@ -325,10 +323,11 @@ int main (int argc, char** argv)
       for (int i = 0; i < source_features->size(); ++i)
       {
 	correspondences[i] = -1; // -1 means no correspondence
+	
 	#ifdef useFPFH
 	if ( isnan ( source_features->points[i].histogram[0] ) ) continue;
 	#else
-	if ( isnan ( source_features->points[i].f1 ) ) continue;
+	if ( isnan ( source_features->points[i].descriptor[0] ) ) continue;
 	#endif
 	
 	search_tree.nearestKSearch ( *source_features, i, 1, index, L2_distance );
@@ -344,11 +343,11 @@ int main (int argc, char** argv)
     
     pcl::CorrespondencesPtr pCorrespondences ( new pcl::Correspondences );
 
-    { // Filtering out wrong matching
+    { // Refining matching by filtering out wrong correspondence
       std::cout << "refineing matching" << std::endl;
       
       int nCorrespondence = 0;
-      for(int i = 0; i < correspondences.size(); i++)
+      for (int i = 0; i < correspondences.size(); i++)
 	if ( correspondences[i] >= 0 ) nCorrespondence++; // do not count "-1" in correspondences
 
       pCorrespondences->resize ( nCorrespondence );
@@ -363,11 +362,11 @@ int main (int argc, char** argv)
 	}
       }
 
-      pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> rejector;
-      rejector.setInputSource ( source_keypointsXYZ );
-      rejector.setInputTarget ( target_keypointsXYZ );
-      rejector.setInputCorrespondences ( pCorrespondences );
-      rejector.getCorrespondences ( *pCorrespondences );
+      pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> refine;
+      refine.setInputSource ( source_keypointsXYZ );
+      refine.setInputTarget ( target_keypointsXYZ );
+      refine.setInputCorrespondences ( pCorrespondences );
+      refine.getCorrespondences ( *pCorrespondences );
     }
     visualize_correspondences (cloud_source, source_keypointsXYZ,
 			       cloud_target, target_keypointsXYZ,
