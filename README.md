@@ -7,6 +7,7 @@ Requirements
 ------------
 pcl > 1.7
 cmake > 2.8
+eigen > 3
 
 
 Codes
