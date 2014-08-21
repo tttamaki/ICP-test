@@ -11,7 +11,7 @@
 #include <pcl/keypoints/harris_3d.h>
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/features/ppf.h>
-
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
 
 #include <vtkRenderWindow.h>
 #include <vtkRendererCollection.h>
@@ -106,76 +106,82 @@ void addNormal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
 
 
 
-
+void
+loadFile(const char* fileName,
+	 pcl::PointCloud<pcl::PointXYZ> &cloud
+)
+{
+  pcl::PolygonMesh mesh;
+  
+  if ( pcl::io::loadPolygonFile ( fileName, mesh ) == -1 )
+  {
+    PCL_ERROR ( "loadFile faild." );
+    return;
+  }
+  else
+    pcl::fromPCLPointCloud2<pcl::PointXYZ> ( mesh.cloud, cloud );
+  
+  // remove points having values of nan
+  std::vector<int> index;
+  pcl::removeNaNFromPointCloud ( cloud, cloud, index );
+}
 
 int main (int argc, char** argv)
 {
   
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source( new pcl::PointCloud<pcl::PointXYZ> );
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target( new pcl::PointCloud<pcl::PointXYZ> );
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source ( new pcl::PointCloud<pcl::PointXYZ> () );
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target ( new pcl::PointCloud<pcl::PointXYZ> () );
   
-  {  
-    pcl::PolygonMesh mesh;
-    
+  {
     // load source
-    if ( pcl::io::loadPolygonFilePLY(argv[1], mesh) == -1 )
-    {
-      PCL_ERROR ("loadPLYFile faild.");
-      return (-1);
-    }
-    else
-      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_source);
-    
-    
+    loadFile ( argv[1], *cloud_source );
     // load target
-    if ( pcl::io::loadPolygonFilePLY(argv[2], mesh) == -1 )
-    {
-      PCL_ERROR ("loadPLYFile faild.");
-      return (-1);
-    }
-    else
-      pcl::fromPCLPointCloud2<pcl::PointXYZ>(mesh.cloud, *cloud_target);
-  }
-  
-  
-  { // remove points with nan
-    std::vector<int> index;
-    pcl::removeNaNFromPointCloud( *cloud_source, *cloud_source, index );
-    pcl::removeNaNFromPointCloud( *cloud_target, *cloud_target, index );
+    loadFile ( argv[2], *cloud_target );
   }
   
   
   
   // prepare could with normals
-  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_source_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_target_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_source_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal> () );
+  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_target_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal> () );
 
-  pcl::PointCloud<pcl::Normal>::Ptr source_normals ( new pcl::PointCloud<pcl::Normal> );
-  pcl::PointCloud<pcl::Normal>::Ptr target_normals ( new pcl::PointCloud<pcl::Normal> );
+  pcl::PointCloud<pcl::Normal>::Ptr source_normals ( new pcl::PointCloud<pcl::Normal> () );
+  pcl::PointCloud<pcl::Normal>::Ptr target_normals ( new pcl::PointCloud<pcl::Normal> () );
 
-  addNormal(cloud_source, source_normals, cloud_source_normals);
-  addNormal(cloud_target, target_normals, cloud_target_normals);
+  addNormal ( cloud_source, source_normals, cloud_source_normals );
+  addNormal ( cloud_target, target_normals, cloud_target_normals );
   
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans ( new pcl::PointCloud<pcl::PointXYZ> );
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans ( new pcl::PointCloud<pcl::PointXYZ> () );
 
+  
+  
+  
+  float radius;
+  {
+    Eigen::Vector4f max_pt, min_pt;
+    pcl::getMinMax3D ( *cloud_source, min_pt, max_pt );
+    radius = (max_pt - min_pt).norm() / 50; // fixed radius (scale) for detector/descriptor
+    std::cout << "scale: " << radius << std::endl;
+  }
+  
   
   
   { // registration
     
-    pcl::PointCloud<pcl::PointXYZI>::Ptr source_keypoints ( new pcl::PointCloud<pcl::PointXYZI> );
-    pcl::PointCloud<pcl::PointXYZI>::Ptr target_keypoints ( new pcl::PointCloud<pcl::PointXYZI> );
-    pcl::PointCloud<pcl::PointXYZ>::Ptr source_keypointsXYZ ( new pcl::PointCloud<pcl::PointXYZ> );
-    pcl::PointCloud<pcl::PointXYZ>::Ptr target_keypointsXYZ ( new pcl::PointCloud<pcl::PointXYZ> );
+    pcl::PointCloud<pcl::PointXYZI>::Ptr source_keypoints ( new pcl::PointCloud<pcl::PointXYZI> () );
+    pcl::PointCloud<pcl::PointXYZI>::Ptr target_keypoints ( new pcl::PointCloud<pcl::PointXYZI> () );
+    pcl::PointCloud<pcl::PointXYZ>::Ptr source_keypointsXYZ ( new pcl::PointCloud<pcl::PointXYZ> () );
+    pcl::PointCloud<pcl::PointXYZ>::Ptr target_keypointsXYZ ( new pcl::PointCloud<pcl::PointXYZ> () );
     
     
     { // Harris detector with normal
       std::cout << "detection" << std::endl;
       
-      pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI>::Ptr detector ( new pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI> );
+      pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI>::Ptr detector ( new pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI> () );
       detector->setNonMaxSupression ( true );
-      detector->setRadius ( 0.01 );
-      detector->setRadiusSearch ( 0.01 );
-      detector->setMethod( pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI>::HARRIS );
+      detector->setRadius ( radius );
+      detector->setRadiusSearch ( radius );
+      detector->setMethod ( pcl::HarrisKeypoint3D<pcl::PointXYZRGBNormal,pcl::PointXYZI>::HARRIS );
       
       detector->setInputCloud ( cloud_source_normals );
       detector->setSearchSurface ( cloud_source_normals );
@@ -195,7 +201,7 @@ int main (int argc, char** argv)
     
 
     
-// #define useFPFH
+#define useFPFH
 
 #ifdef useFPFH
 #define descriptorType pcl::FPFHSignature33
@@ -203,18 +209,18 @@ int main (int argc, char** argv)
 #define descriptorType pcl::PPFSignature
 #endif
 
-    pcl::PointCloud<descriptorType>::Ptr source_features ( new pcl::PointCloud<descriptorType> );
-    pcl::PointCloud<descriptorType>::Ptr target_features ( new pcl::PointCloud<descriptorType> );
+    pcl::PointCloud<descriptorType>::Ptr source_features ( new pcl::PointCloud<descriptorType> () );
+    pcl::PointCloud<descriptorType>::Ptr target_features ( new pcl::PointCloud<descriptorType> () );
     
     { // descriptor
       std::cout << "description" << std::endl;
 #ifdef useFPFH
-      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::FPFHEstimationOMP<pcl::PointXYZ, pcl::Normal, descriptorType> ); 
+      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::FPFHEstimationOMP<pcl::PointXYZ, pcl::Normal, descriptorType> () ); 
 #else
-      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::PPFEstimation<pcl::PointXYZ, pcl::Normal, descriptorType> ); 
+      pcl::Feature<pcl::PointXYZ, descriptorType>::Ptr descriptor ( new pcl::PPFEstimation<pcl::PointXYZ, pcl::Normal, descriptorType> () );
 #endif      
       descriptor->setSearchMethod ( pcl::search::Search<pcl::PointXYZ>::Ptr ( new pcl::search::KdTree<pcl::PointXYZ>) );
-      descriptor->setRadiusSearch ( 0.5 );
+      descriptor->setRadiusSearch ( radius*10 );
       
       pcl::FeatureFromNormals<pcl::PointXYZ, pcl::Normal, descriptorType>::Ptr feature_from_normals = boost::dynamic_pointer_cast<pcl::FeatureFromNormals<pcl::PointXYZ, pcl::Normal, descriptorType> > ( descriptor );
       
@@ -246,7 +252,12 @@ int main (int argc, char** argv)
       std::vector<float> L2_distance(1);
       for (int i = 0; i < source_features->size(); ++i)
       {
-	if ( isnan(source_features->points[i].f1) ) continue;
+	#ifdef useFPFH
+	if ( isnan ( source_features->points[i].histogram[0] ) ) continue;
+	#else
+	if ( isnan ( source_features->points[i].f1 ) ) continue;
+	#endif
+	
 	search_tree.nearestKSearch ( *source_features, i, 1, index, L2_distance );
 	correspondences[i] = index[0];
       }
@@ -255,7 +266,29 @@ int main (int argc, char** argv)
     visualize_correspondences (cloud_source, source_keypointsXYZ,
 			       cloud_target, target_keypointsXYZ,
 			       correspondences);
-
+    
+    std::vector<int> source2target_(correspondences), target2source_(correspondences.size());
+    {
+      pcl::CorrespondencesPtr correspondences_;
+      
+      cout << "correspondence rejection..." << std::flush;
+      std::vector<std::pair<unsigned, unsigned> > correspondences;
+      for (unsigned cIdx = 0; cIdx < source2target_.size (); ++cIdx)
+	if (target2source_[source2target_[cIdx]] == cIdx)
+	  correspondences.push_back(std::make_pair(cIdx, source2target_[cIdx]));
+	correspondences_->resize (correspondences.size());
+      for (unsigned cIdx = 0; cIdx < correspondences.size(); ++cIdx)
+      {
+	(*correspondences_)[cIdx].index_query = correspondences[cIdx].first;
+	(*correspondences_)[cIdx].index_match = correspondences[cIdx].second;
+      }
+      pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> rejector;
+      rejector.setInputCloud(source_keypointsXYZ);
+      rejector.setTargetCloud(target_keypointsXYZ);
+      rejector.setInputCorrespondences(correspondences_);
+      rejector.getCorrespondences(*correspondences_);
+      cout << "OK" << endl;
+    }
     
     
     { // Estimating transformation
@@ -263,15 +296,16 @@ int main (int argc, char** argv)
       pcl::registration::TransformationEstimationSVD< pcl::PointXYZ, pcl::PointXYZ > est;
       Eigen::Matrix4f transformation;
       
-      std::vector<int> source_index(source_features->size());
+      std::vector<int> source_index ( source_features->size() );
       for (int i = 0; i < source_features->size(); ++i) source_index[i] = i;
       
       
       est.estimateRigidTransformation ( *source_keypointsXYZ, source_index,
-					*target_keypointsXYZ, correspondences, transformation);
+					*target_keypointsXYZ, correspondences,
+					transformation);
       std::cout << transformation << std::endl;
       
-      pcl::transformPointCloud (*cloud_source, *cloud_source_trans, transformation);
+      pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, transformation );
       
     }
     
@@ -286,23 +320,22 @@ int main (int argc, char** argv)
     boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer ( new pcl::visualization::PCLVisualizer ("3D Viewer") );
     viewer->setBackgroundColor (0, 0, 0);
     
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color(cloud_source, 0, 255, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color ( cloud_source, 0, 255, 0 );
     viewer->addPointCloud<pcl::PointXYZ> (cloud_source, source_color, "source");
     viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
     
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color(cloud_target, 255, 255, 255);
-    viewer->addPointCloud<pcl::PointXYZ> (cloud_target, target_color, "target");
-    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> target_color ( cloud_target, 255, 255, 255 );
+    viewer->addPointCloud<pcl::PointXYZ> ( cloud_target, target_color, "target");
+    viewer->setPointCloudRenderingProperties ( pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target" );
     
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_trans_color(cloud_source_trans, 255, 0, 255);
-    viewer->addPointCloud<pcl::PointXYZ> (cloud_source_trans, source_trans_color, "source trans");
-    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans");
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_trans_color ( cloud_source_trans, 255, 0, 255 );
+    viewer->addPointCloud<pcl::PointXYZ> ( cloud_source_trans, source_trans_color, "source trans" );
+    viewer->setPointCloudRenderingProperties ( pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source trans" );
     
     
-    //     viewer->initCameraParameters ();
     // orthographic (parallel) projection; same with pressing key 'o'
-    viewer->getRenderWindow ()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection(1);
-    
+    viewer->getRenderWindow()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection( 1 );
+
     viewer->resetCamera();
     
     viewer->spin ();
