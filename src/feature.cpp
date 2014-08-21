@@ -401,10 +401,10 @@ int main (int argc, char** argv)
   }
   
   
-
-  boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer ( new pcl::visualization::PCLVisualizer ("3D Viewer") );
-
-   // visualization
+  
+  {
+    // visualization
+    boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer ( new pcl::visualization::PCLVisualizer ("3D Viewer") );
     viewer->setBackgroundColor (0, 0, 0);
     
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color ( cloud_source, 0, 255, 0 );
@@ -422,49 +422,37 @@ int main (int argc, char** argv)
     
     // orthographic (parallel) projection; same with pressing key 'o'
     viewer->getRenderWindow()->GetRenderers()->GetFirstRenderer()->GetActiveCamera()->SetParallelProjection( 1 );
-
+    
     viewer->resetCamera();
     
     viewer->spin ();
     
-  
-  
-  
-  
-    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     
-    icp.setInputSource ( cloud_source_trans );
-    icp.setInputTarget ( cloud_target );
     
-    // registration
-    icp.align ( *cloud_source_trans );
     
-     Eigen::Matrix4f transformation;
-    if( icp.hasConverged() )
-    {
-      std::cout << "Converged. score =" << icp.getFitnessScore() << std::endl;
+    { // addtional refinement wit ICP
+      pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> icp;
       
-      transformation = icp.getFinalTransformation();
-      std::cout << transformation << std::endl;
+      icp.setInputSource ( cloud_source_trans_normals );
+      icp.setInputTarget ( cloud_target_normals );
+      
+      // registration
+      icp.align ( *cloud_source_trans_normals );
+      
+      Eigen::Matrix4f transformation;
+      if ( icp.hasConverged() )
+      {
+	pcl::transformPointCloud ( *cloud_source_trans, *cloud_source_trans, icp.getFinalTransformation() );
+	viewer->updatePointCloud ( cloud_source_trans, source_trans_color, "source trans" );
+      }
+      else
+	std::cout << "Not converged." << std::endl;
+      
+      viewer->spin ();
     }
-    else
-      std::cout << "Not converged." << std::endl;
-
-  
-  
-  
-  if( icp.hasConverged() )
-  {
-    viewer->updatePointCloud ( cloud_source_trans, source_trans_color, "source trans" );
-    std::cout << icp.getFitnessScore() << std::endl;
   }
-  else
-    std::cout << "Not converged." << std::endl;
   
-  viewer->spin ();
-
-      
-      
+  
   return(0);
 }
 
