@@ -63,6 +63,7 @@ visualize_correspondences (const PointCloudPtr points1, const PointCloudPtr keyp
 //     {
 //       continue; // Don't draw weak correspondences
 //     }
+    if ( correspondences[i] < 0) continue;
     // Get the pair of points
     const PointT & p_left = keypoints_left->points[i];
     const PointT & p_right = keypoints_right->points[correspondences[i]];
@@ -83,6 +84,71 @@ visualize_correspondences (const PointCloudPtr points1, const PointCloudPtr keyp
   vis.resetCamera ();
   vis.spin ();
 }
+void
+visualize_correspondences (const PointCloudPtr points1, const PointCloudPtr keypoints1,
+			   const PointCloudPtr points2, const PointCloudPtr keypoints2,
+			   const pcl::CorrespondencesPtr pCorrespondences
+			   /* std::vector<int> &correspondences ,
+			   const std::vector<float> &correspondence_scores, int max_to_display */)
+{
+  // We want to visualize two clouds side-by-side, so do to this, we'll make copies of the clouds and transform them
+  // by shifting one to the left and the other to the right. Then we'll draw lines between the corresponding points
+  // Create some new point clouds to hold our transformed data
+  PointCloudPtr points_left (new PointCloud);
+  PointCloudPtr keypoints_left (new PointCloud);
+  PointCloudPtr points_right (new PointCloud);
+  PointCloudPtr keypoints_right (new PointCloud);
+  // Shift the first clouds' points to the left
+  //const Eigen::Vector3f translate (0.0, 0.0, 0.3);
+  const Eigen::Vector3f translate (0.4, 0.0, 0.0);
+  const Eigen::Quaternionf no_rotation (0, 0, 0, 0);
+  pcl::transformPointCloud (*points1, *points_left, -translate, no_rotation);
+  pcl::transformPointCloud (*keypoints1, *keypoints_left, -translate, no_rotation);
+  // Shift the second clouds' points to the right
+  pcl::transformPointCloud (*points2, *points_right, translate, no_rotation);
+  pcl::transformPointCloud (*keypoints2, *keypoints_right, translate, no_rotation);
+  // Add the clouds to the visualizer
+  pcl::visualization::PCLVisualizer vis;
+  vis.addPointCloud (points_left, "points_left");
+  vis.addPointCloud (points_right, "points_right");
+//   // Compute the weakest correspondence score to display
+//   std::vector<float> temp (correspondence_scores);
+//   std::sort (temp.begin (), temp.end ());
+//   if (max_to_display >= temp.size ())
+//     max_to_display = temp.size () - 1;
+//   float threshold = temp[max_to_display];
+//   std::cout << max_to_display << std::endl;
+  // Draw lines between the best corresponding points
+  for (size_t i = 0; i < pCorrespondences->size (); ++i)
+  {
+//     if (correspondence_scores[i] > threshold)
+//     {
+//       continue; // Don't draw weak correspondences
+//     }
+    // Get the pair of points
+    const PointT & p_left = keypoints_left->points[(*pCorrespondences)[i].index_query];
+    const PointT & p_right = keypoints_right->points[(*pCorrespondences)[i].index_match];
+    // Generate a random (bright) color
+    double r = (rand() % 100);
+    double g = (rand() % 100);
+    double b = (rand() % 100);
+    double max_channel = std::max (r, std::max (g, b));
+    r /= max_channel;
+    g /= max_channel;
+    b /= max_channel;
+    // Generate a unique string for each line
+    std::stringstream ss ("line");
+    ss << i;
+    // Draw the line
+    vis.addLine (p_left, p_right, r, g, b, ss.str ());
+  }
+  vis.resetCamera ();
+  vis.spin ();
+}
+
+
+
+
 
 
 
@@ -144,12 +210,18 @@ int main (int argc, char** argv)
   // prepare could with normals
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_source_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal> () );
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_target_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal> () );
+  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_source_trans_normals (new pcl::PointCloud<pcl::PointXYZRGBNormal> () );
 
   pcl::PointCloud<pcl::Normal>::Ptr source_normals ( new pcl::PointCloud<pcl::Normal> () );
   pcl::PointCloud<pcl::Normal>::Ptr target_normals ( new pcl::PointCloud<pcl::Normal> () );
 
   addNormal ( cloud_source, source_normals, cloud_source_normals );
   addNormal ( cloud_target, target_normals, cloud_target_normals );
+  addNormal ( cloud_source, source_normals, cloud_source_trans_normals ); // dummy at this time
+  
+  
+  
+  
   
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_trans ( new pcl::PointCloud<pcl::PointXYZ> () );
 
@@ -239,7 +311,7 @@ int main (int argc, char** argv)
 
     
     std::vector<int> correspondences;
-    
+
     { // Find matching with Kd-tree
       std::cout << "matching" << std::endl;
 
@@ -252,6 +324,7 @@ int main (int argc, char** argv)
       std::vector<float> L2_distance(1);
       for (int i = 0; i < source_features->size(); ++i)
       {
+	correspondences[i] = -1; // -1 means no correspondence
 	#ifdef useFPFH
 	if ( isnan ( source_features->points[i].histogram[0] ) ) continue;
 	#else
@@ -260,6 +333,7 @@ int main (int argc, char** argv)
 	
 	search_tree.nearestKSearch ( *source_features, i, 1, index, L2_distance );
 	correspondences[i] = index[0];
+	
       }
       
     }
@@ -267,57 +341,70 @@ int main (int argc, char** argv)
 			       cloud_target, target_keypointsXYZ,
 			       correspondences);
     
-    std::vector<int> source2target_(correspondences), target2source_(correspondences.size());
-    {
-      pcl::CorrespondencesPtr correspondences_;
+    
+    pcl::CorrespondencesPtr pCorrespondences ( new pcl::Correspondences );
+
+    { // Filtering out wrong matching
+      std::cout << "refineing matching" << std::endl;
       
-      cout << "correspondence rejection..." << std::flush;
-      std::vector<std::pair<unsigned, unsigned> > correspondences;
-      for (unsigned cIdx = 0; cIdx < source2target_.size (); ++cIdx)
-	if (target2source_[source2target_[cIdx]] == cIdx)
-	  correspondences.push_back(std::make_pair(cIdx, source2target_[cIdx]));
-	correspondences_->resize (correspondences.size());
-      for (unsigned cIdx = 0; cIdx < correspondences.size(); ++cIdx)
+      int nCorrespondence = 0;
+      for(int i = 0; i < correspondences.size(); i++)
+	if ( correspondences[i] >= 0 ) nCorrespondence++; // do not count "-1" in correspondences
+
+      pCorrespondences->resize ( nCorrespondence );
+      for (int i = 0, j = 0; i < correspondences.size(); i++)
       {
-	(*correspondences_)[cIdx].index_query = correspondences[cIdx].first;
-	(*correspondences_)[cIdx].index_match = correspondences[cIdx].second;
+	if ( correspondences[i] > 0 )
+	{
+	  (*pCorrespondences)[j].index_query = i;
+	  (*pCorrespondences)[j].index_match = correspondences[i];
+	  j++;
+	  
+	}
       }
+
       pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> rejector;
-      rejector.setInputCloud(source_keypointsXYZ);
-      rejector.setTargetCloud(target_keypointsXYZ);
-      rejector.setInputCorrespondences(correspondences_);
-      rejector.getCorrespondences(*correspondences_);
-      cout << "OK" << endl;
+      rejector.setInputSource ( source_keypointsXYZ );
+      rejector.setInputTarget ( target_keypointsXYZ );
+      rejector.setInputCorrespondences ( pCorrespondences );
+      rejector.getCorrespondences ( *pCorrespondences );
     }
+    visualize_correspondences (cloud_source, source_keypointsXYZ,
+			       cloud_target, target_keypointsXYZ,
+			       pCorrespondences);
     
+
     
-    { // Estimating transformation
-      
+
+    Eigen::Matrix4f transformation;
+    
+    { // Estimating rigid transformation
+      std::cout << "Estimating transformation" << std::endl;
+
       pcl::registration::TransformationEstimationSVD< pcl::PointXYZ, pcl::PointXYZ > est;
-      Eigen::Matrix4f transformation;
       
       std::vector<int> source_index ( source_features->size() );
       for (int i = 0; i < source_features->size(); ++i) source_index[i] = i;
       
       
-      est.estimateRigidTransformation ( *source_keypointsXYZ, source_index,
-					*target_keypointsXYZ, correspondences,
-					transformation);
+      est.estimateRigidTransformation ( *source_keypointsXYZ,
+					*target_keypointsXYZ, *pCorrespondences,
+					transformation );
       std::cout << transformation << std::endl;
       
       pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, transformation );
+      pcl::transformPointCloud ( *cloud_source_normals, *cloud_source_trans_normals, transformation );
       
     }
     
     
-
-    
   }
   
   
-  
-  { // visualization
-    boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer ( new pcl::visualization::PCLVisualizer ("3D Viewer") );
+
+  boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer ( new pcl::visualization::PCLVisualizer ("3D Viewer") );
+
+   // visualization
     viewer->setBackgroundColor (0, 0, 0);
     
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_color ( cloud_source, 0, 255, 0 );
@@ -340,8 +427,32 @@ int main (int argc, char** argv)
     
     viewer->spin ();
     
-  }
   
+  
+  
+  
+  pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>::Ptr icp ( new pcl::IterativeClosestPointWithNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> () );
+  icp->setInputSource ( cloud_source_trans_normals ); // not cloud_source, but cloud_source_trans!
+  icp->setInputTarget ( cloud_target_normals );
+  
+  // registration with ICP
+  icp->align ( *cloud_source_trans_normals );
+  
+  
+  
+  if( icp->hasConverged() )
+  {
+    pcl::transformPointCloud ( *cloud_source, *cloud_source_trans, icp->getFinalTransformation() );
+    viewer->updatePointCloud ( cloud_source_trans, source_trans_color, "source trans" );
+    std::cout << icp->getFitnessScore() << std::endl;
+  }
+  else
+    std::cout << "Not converged." << std::endl;
+  
+  viewer->spin ();
+
+      
+      
   return(0);
 }
 
