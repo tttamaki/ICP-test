@@ -21,3 +21,7 @@ target_link_libraries (icp3_with_normal_iterative_view ${PCL_LIBRARIES})
 add_executable (icp4_after_feature_registration src/icp4_after_feature_registration.cpp)
 target_link_libraries (icp4_after_feature_registration ${PCL_LIBRARIES})
 
+
+add_executable (transform_estimation src/transform_estimation.cpp)
+target_link_libraries (transform_estimation ${PCL_LIBRARIES})
+
