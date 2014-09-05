@@ -12,7 +12,7 @@
 int main (int argc, char** argv)
 {
   
-  bool use_scale = true;
+  bool use_scale = argc > 1 ? false : true;
   
   
   // alternative to rand()
@@ -24,7 +24,7 @@ int main (int argc, char** argv)
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target ( new pcl::PointCloud<pcl::PointXYZ> () );
   
   // create random source point cloud
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 1000; i++) {
     cloud_source->push_back (pcl::PointXYZ (frand(gen), frand(gen), frand(gen) ));
   }
   
@@ -43,7 +43,6 @@ int main (int argc, char** argv)
 
     std::cout << "true R" << std::endl << R.matrix() << std::endl
               << "true T" << std::endl << T .vector() << std::endl;
-    std::cout << "|R| " << R.matrix().topLeftCorner(3,3).determinant() << std::endl;
 
     if ( use_scale )
     {
@@ -52,12 +51,14 @@ int main (int argc, char** argv)
       std::cout << "true sR" << std::endl << R.matrix() << std::endl
                 << "true scale " << scale << std::endl;
     }
-    std::cout << "|R| " << R.matrix().topLeftCorner(3,3).determinant() << std::endl;
+    
     // R and T
     transformation_true = T * R ; // shoul be in this order if you mean (Rx + T).   If R*T, then R(x+t) !
 
   }
+  std::cout << "true transformation" << std::endl << transformation_true.matrix() << std::endl;
 
+  
   // create target point cloud
   pcl::transformPointCloud ( *cloud_source, *cloud_target, transformation_true );
     
@@ -70,15 +71,22 @@ int main (int argc, char** argv)
     
   Eigen::Affine3f transformation_est;
   estPtr->estimateRigidTransformation ( *cloud_source,
-                                    *cloud_target,
-                                    transformation_est.matrix() );
+                                        *cloud_target,
+                                        transformation_est.matrix() );
   
-  std::cout << "true transformation" << std::endl << transformation_true.matrix() << std::endl;
-  std::cout << "estimated transformation " << std::endl << transformation_est.matrix()  << std::endl;
   if ( use_scale ) {
     Eigen::Matrix3f R = transformation_est.matrix().topLeftCorner(3,3);
     std::cout << "estimated scale " << std::sqrt( (R.transpose() * R).trace() / 3.0 ) << std::endl;
+    
+    { // PCL 1.7.1 (or, at least, github 2014/Sep/5 commit 8cb8e87 ) has a bug! the translation is not correct.
+      Eigen::Vector4f center_source, center_target;
+      pcl::compute3DCentroid ( *cloud_source, center_source );
+      pcl::compute3DCentroid ( *cloud_target, center_target );
+      transformation_est.matrix().block (0, 3, 3, 1) = center_target.head(3) - R * center_source.head(3);
+    }
+  
   }
+  std::cout << "estimated transformation " << std::endl << transformation_est.matrix()  << std::endl;
   
   return ( 0 );
 }
