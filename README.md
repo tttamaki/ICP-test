@@ -44,7 +44,7 @@ cd build
 Simple registration with ICP. Only results are shown.
 
 ```
-$ ./icp1_simple ../data/bun{000,045}mesh.ply 
+$ ./icp1_simple ../data/bunny/bun{000,045}mesh.ply 
 Converged. score =1.19601e-05
    0.827246  0.00948285   -0.561763   0.0341258
   -0.012711     0.99992 -0.00183846 0.000735376
@@ -57,7 +57,7 @@ Converged. score =1.19601e-05
 Simple registration with ICP. Animated registration process is shown.
 
 ```
-$ ./icp2_iterative_view ../data/bun{000,045}mesh.ply 
+$ ./icp2_iterative_view ../data/bunny/bun{000,045}mesh.ply 
 0.000115243
 6.63744e-05
 3.57769e-05
@@ -84,7 +84,7 @@ press `q` to stop.
 Registration by using ICP with normal vector information. Animated registration process is shown.
 
 ```
-$ ./icp3_with_normal_iterative_view ../data/bun{000,045}mesh.ply 
+$ ./icp3_with_normal_iterative_view ../data/bunny/bun{000,045}mesh.ply 
 0.000228403
 8.08289e-05
 2.11145e-05
