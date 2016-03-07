@@ -122,16 +122,16 @@ Estimating transformation
          0          0          0          1
 ```
 
-+Correspondences (matches) are shown with lines.
- There  are many outliers.
- press `q` to proceed.
-+Outlier matches are rejected.
- press `q` to proceed.
-+Aligned the milk to the scene with matched points.
- press `q` to proceed.
-+Final refinement by PCL.
- Estimated R and t are shown.
- press `q` to stop.
++ Correspondences (matches) are shown with lines.
+  There  are many outliers.
+  press `q` to proceed.
++ Outlier matches are rejected.
+  press `q` to proceed.
++ Aligned the milk to the scene with matched points.
+  press `q` to proceed.
++ Final refinement by PCL.
+  Estimated R and t are shown.
+  press `q` to stop.
 
 
 
