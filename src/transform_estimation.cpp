@@ -77,14 +77,6 @@ int main (int argc, char** argv)
   if ( use_scale ) {
     Eigen::Matrix3f R = transformation_est.matrix().topLeftCorner(3,3);
     std::cout << "estimated scale " << std::sqrt( (R.transpose() * R).trace() / 3.0 ) << std::endl;
-    
-    { // PCL 1.7.1 (or, at least, github 2014/Sep/5 commit 8cb8e87 ) has a bug! the translation is not correct.
-      Eigen::Vector4f center_source, center_target;
-      pcl::compute3DCentroid ( *cloud_source, center_source );
-      pcl::compute3DCentroid ( *cloud_target, center_target );
-      transformation_est.matrix().block (0, 3, 3, 1) = center_target.head(3) - R * center_source.head(3);
-    }
-  
   }
   std::cout << "estimated transformation " << std::endl << transformation_est.matrix()  << std::endl;
   
