@@ -18,7 +18,7 @@ target_link_libraries (icp2_iterative_view ${PCL_LIBRARIES})
 add_executable (icp3_with_normal_iterative_view src/icp3_with_normal_iterative_view.cpp)
 target_link_libraries (icp3_with_normal_iterative_view ${PCL_LIBRARIES})
 
-add_executable (icp4_after_feature_registration src/icp4_after_feature_registration.cpp)
+add_executable (icp4_after_feature_registration src/icp4_after_feature_registration.cpp src/visualize_correspondences.cpp)
 target_link_libraries (icp4_after_feature_registration ${PCL_LIBRARIES})
 
 
