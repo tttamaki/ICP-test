@@ -3,20 +3,53 @@
 #include <pcl/common/transforms.h>
 #include <pcl/registration/transformation_estimation_svd.h>
 #include <pcl/registration/transformation_estimation_svd_scale.h>
+#include <pcl/registration/transformation_estimation_dual_quaternion.h>
+#include <pcl/registration/transformation_estimation_lm.h>
 #include <pcl/common/centroid.h>
+#include <pcl/console/parse.h>
 #include <boost/random.hpp>
 
-
+enum methods {
+  SVD,
+  DQ,
+  LM
+};
 
 
 int main (int argc, char** argv)
 {
   
-  bool use_scale = argc > 1 ? false : true;
+  int method = SVD;
+  pcl::console::parse_argument (argc, argv, "-m", method);
+  std::cout << "method: ";
+  switch (method) {
+  case SVD: std::cout << "SVD"; break;
+  case DQ:  std::cout << "DQ";  break;
+  case LM:  std::cout << "LM";  break;
+  default: std::cout << "undefined. ERROR" << std::endl; exit(0);
+  }
+  std::cout << std::endl;
+
+  bool use_scale = false;
+  pcl::console::parse_argument (argc, argv, "-s", use_scale);
+  std::cout << "use scale: " << (use_scale ? "true" : "false") << std::endl;
+  if (use_scale) {
+      std::cout << "forse SVD." << std::endl;
+      method = SVD;
+  }
+
+  bool use_rand = false;
+  pcl::console::parse_argument (argc, argv, "-r", use_rand);
+  std::cout << "use random seed: " << (use_rand ? "true" : "false") << std::endl;
+
   
   
-  // alternative to rand()
-  boost::random::mt19937 gen ( std::time(0) ); // random seed with current time in second
+  boost::random::mt19937 gen; // alternative to rand()
+  if (use_rand)
+    gen.seed( std::time(0) ); // random seed with current time in second
+  else
+    gen.seed( 0 ); // fixed seed
+
   boost::random::uniform_real_distribution<float> frand( 1.0, 3.2 ); // random gen between 1.0 and 3.2
   
   
@@ -64,9 +97,21 @@ int main (int argc, char** argv)
     
   boost::shared_ptr< pcl::registration::TransformationEstimation< pcl::PointXYZ, pcl::PointXYZ > > estPtr;
   if ( use_scale )
-    estPtr.reset ( new pcl::registration::TransformationEstimationSVDScale < pcl::PointXYZ, pcl::PointXYZ > () ); // estimator of R and T along with scale
+    // estimator of R and T along with scale
+    estPtr.reset ( new pcl::registration::TransformationEstimationSVDScale < pcl::PointXYZ, pcl::PointXYZ > () );
   else 
-    estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZ, pcl::PointXYZ > () ); // estimator of R and T
+    // estimator of R and T
+    switch (method) {
+    case SVD:
+      estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZ, pcl::PointXYZ > () );
+      break;
+    case DQ:
+      estPtr.reset ( new pcl::registration::TransformationEstimationDualQuaternion < pcl::PointXYZ, pcl::PointXYZ > () );
+      break;
+    case LM:
+      estPtr.reset ( new pcl::registration::TransformationEstimationLM < pcl::PointXYZ, pcl::PointXYZ > () );
+      break;
+    }
 
     
   Eigen::Affine3f transformation_est;

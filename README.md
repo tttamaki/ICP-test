@@ -143,63 +143,72 @@ Estimation of R and t (and scale) from given two sets of points.
 - One is randomly generated points, and 
 - the other is transfomed by R, t (and optionaly s).
 
-Note that resutls changes every time because of the use of random().
+Options:
+- `-s 1` : scale is estimated. otherwise R and t only. default: `-s 0`
+- `-r 1` : the result changes every time because randomly generated points, R and t are used. otherwise fixed result. default: `-r 0`
+- `-m` : select method: `-m 0` svd, `-m 1` dual quaternion, `-m 2` nonlinear optimization (LM). default: `-m 0`
 
-
-+ R, t and s are estimatd if no arguments are given.
++ R, t and s are estimatd if `-s 1` is given.
 
 ```
-$ ./transform_estimation 
+$ ./transform_estimation -s 1
+method: SVD
+use scale: true
+forse SVD.
+use random seed: false
 true R
-   0.148915   -0.563813    0.812366           0
-  -0.106047   -0.825894   -0.553762           0
-   0.983147 -0.00368515   -0.182779           0
-          0           0           0           1
+ 0.382339 -0.813161  0.438847         0
+ 0.327021 -0.325114 -0.887332         0
+ 0.864219  0.482773  0.141617         0
+        0         0         0         1
 true T
-1.43107
-1.16595
-1.87135
+1.41126
+2.84138
+1.76013
 true sR
-  0.455674   -1.72524     2.4858          0
- -0.324499    -2.5272   -1.69449          0
-   3.00839 -0.0112764  -0.559295          0
-         0          0          0          1
-true scale 3.05996
+ 0.568925  -1.20999  0.653009         0
+ 0.486611 -0.483774  -1.32036         0
+  1.28597  0.718373  0.210728         0
+        0         0         0         1
+true scale 1.48801
 true transformation
-  0.455674   -1.72524     2.4858    1.43107
- -0.324499    -2.5272   -1.69449    1.16595
-   3.00839 -0.0112764  -0.559295    1.87135
-         0          0          0          1
-estimated scale 3.05996
+ 0.568925  -1.20999  0.653009   1.41126
+ 0.486611 -0.483774  -1.32036   2.84138
+  1.28597  0.718373  0.210728   1.76013
+        0         0         0         1
+estimated scale 1.48801
 estimated transformation 
-  0.455674   -1.72524     2.4858    1.43107
- -0.324499    -2.5272   -1.69449    1.16595
-   3.00839 -0.0112764  -0.559296    1.87135
-         0          0          0          1
+ 0.568925  -1.20999   0.65301   1.41126
+ 0.486611 -0.483774  -1.32036   2.84138
+  1.28597  0.718373  0.210728   1.76013
+        0         0         0         1
 ```
 
 
-+ R, t are estimatd if any arguments are given.
++ R, t are estimatd if `-s 0` (or no option) is given (default)
 
 ```
-$ ./transform_estimation noscale
+$ ./transform_estimation
+method: SVD
+use scale: false
+use random seed: false
 true R
-  0.255721  -0.744612   0.616571          0
-  0.158815  -0.596756   -0.78655          0
-  0.953616   0.299058 -0.0343475          0
-         0          0          0          1
+ 0.382339 -0.813161  0.438847         0
+ 0.327021 -0.325114 -0.887332         0
+ 0.864219  0.482773  0.141617         0
+        0         0         0         1
 true T
-1.82391
-1.52619
-1.27993
+1.41126
+2.84138
+1.76013
 true transformation
-  0.255721  -0.744612   0.616571    1.82391
-  0.158815  -0.596756   -0.78655    1.52619
-  0.953616   0.299058 -0.0343475    1.27993
-         0          0          0          1
+ 0.382339 -0.813161  0.438847   1.41126
+ 0.327021 -0.325114 -0.887332   2.84138
+ 0.864219  0.482773  0.141617   1.76013
+        0         0         0         1
 estimated transformation 
-  0.255721  -0.744612   0.616571    1.82391
-  0.158815  -0.596756   -0.78655    1.52619
-  0.953617   0.299058 -0.0343475    1.27993
-         0          0          0          1
+ 0.382339 -0.813161  0.438847   1.41126
+ 0.327021 -0.325114 -0.887332   2.84138
+ 0.864219  0.482773  0.141617   1.76013
+        0         0         0         1
 ```
